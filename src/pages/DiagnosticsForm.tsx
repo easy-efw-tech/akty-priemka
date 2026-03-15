@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import { createRoot } from 'react-dom/client';
 import { Save, Download, ChevronLeft, Guitar, AlertCircle, CheckCircle2, Loader2, FileCheck } from 'lucide-react';
 import { GeneralSection } from '../components/form/GeneralSection';
 import { NeckSection } from '../components/form/NeckSection';
@@ -12,9 +11,8 @@ import { CostSection } from '../components/form/CostSection';
 import { CustomerAgreement } from '../components/form/CustomerAgreement';
 import { FormSection } from '../components/ui/FormSection';
 import { CosmeticMap } from '../components/CosmeticMap';
-import { DiagnosticsPreview } from '../components/DiagnosticsPreview';
 import { supabase } from '../lib/supabase';
-import { htmlElementToPdf } from '../lib/htmlToPdf';
+import { generateDiagnosticsPDF } from '../lib/pdfGenerator';
 import type { RepairOrder, Organization } from '../types';
 import { defaultOrder } from '../types';
 import { OrganizationSelector } from '../components/form/OrganizationSelector';
@@ -111,23 +109,13 @@ export function DiagnosticsForm({ onBack, editOrder, onOpenAvr }: Props) {
       return;
     }
     setGeneratingPdf(true);
-    const container = document.createElement('div');
-    container.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;opacity:0;pointer-events:none;';
-    document.body.appendChild(container);
     try {
-      const root = createRoot(container);
-      await new Promise<void>(resolve => {
-        root.render(<DiagnosticsPreview order={order} ref={(el) => { if (el) resolve(); }} />);
-      });
-      await new Promise(resolve => setTimeout(resolve, 800));
-      const el = container.firstElementChild as HTMLElement;
-      if (el) await htmlElementToPdf(el, `акт_${order.job_number || 'диагностики'}.pdf`);
-      root.unmount();
+      const doc = generateDiagnosticsPDF(order);
+      doc.save(`акт_${order.job_number || 'диагностики'}.pdf`);
     } catch (err) {
       console.error(err);
       showToast('Ошибка при генерации PDF', 'error');
     } finally {
-      document.body.removeChild(container);
       setGeneratingPdf(false);
     }
   };

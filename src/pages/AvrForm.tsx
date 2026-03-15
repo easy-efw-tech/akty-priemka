@@ -1,11 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { createRoot } from 'react-dom/client';
 import { ChevronLeft, Plus, Trash2, Download, Save, Loader2, CheckCircle2, AlertCircle, FileCheck } from 'lucide-react';
 import { FormSection, FieldRow, TextField } from '../components/ui/FormSection';
 import { SignaturePad } from '../components/SignaturePad';
-import { AvrPreview } from '../components/AvrPreview';
 import { supabase } from '../lib/supabase';
-import { htmlElementToPdf } from '../lib/htmlToPdf';
+import { generateAvrPDF } from '../lib/pdfGenerator';
 import type { RepairOrder, AvrItem, Organization } from '../types';
 import { OrganizationSelector } from '../components/form/OrganizationSelector';
 
@@ -90,23 +88,13 @@ export function AvrForm({ order: initialOrder, onBack }: Props) {
 
   const handleDownload = async () => {
     setGeneratingPdf(true);
-    const container = document.createElement('div');
-    container.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;opacity:0;pointer-events:none;';
-    document.body.appendChild(container);
     try {
-      const root = createRoot(container);
-      await new Promise<void>(resolve => {
-        root.render(<AvrPreview order={order} items={items} avrDate={order.avr_date || ''} ref={(el) => { if (el) resolve(); }} />);
-      });
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const el = container.firstElementChild as HTMLElement;
-      if (el) await htmlElementToPdf(el, `АВР_${order.job_number || order.id || 'акт'}.pdf`);
-      root.unmount();
+      const doc = generateAvrPDF(order, items, order.avr_date || '');
+      doc.save(`АВР_${order.job_number || order.id || 'акт'}.pdf`);
     } catch (err) {
       console.error(err);
       showToast('Ошибка при генерации PDF', 'error');
     } finally {
-      document.body.removeChild(container);
       setGeneratingPdf(false);
     }
   };
